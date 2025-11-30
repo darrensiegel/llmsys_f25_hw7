@@ -126,7 +126,7 @@ def run_rlhf_training(config: AssignmentConfig):
     
     baseline_full_texts = [f"{prompt} {response}" 
                           for prompt, response in zip(eval_prompts[:5], baseline_responses)]
-    baseline_rewards = reward_model.get_rewards(baseline_full_texts, trainer.tokenizer, device)
+    baseline_rewards = reward_model.get_rewards(baseline_full_texts, trainer.reward_tokenizer, device)
     
     # Start RLHF training
     logger.info("Starting RLHF training...")

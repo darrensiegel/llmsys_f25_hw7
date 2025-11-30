@@ -3,6 +3,7 @@ RLHF Trainer Implementation using VERL Framework for Assignment 7.
 This module contains the main RLHF training logic using VERL's PPO implementation.
 """
 
+import os
 import torch
 import torch.nn as nn
 from typing import Dict, List, Optional, Tuple, Any
@@ -278,6 +279,7 @@ class VERLTrainer:
         policy_model: PreTrainedModel,
         reward_model: RewardModel,
         tokenizer: PreTrainedTokenizer,
+        reward_tokenizer: Optional[PreTrainedTokenizer],
         config: AssignmentConfig,
         device: torch.device
     ):
@@ -294,6 +296,8 @@ class VERLTrainer:
         self.config = config
         self.device = device
         self.tokenizer = tokenizer
+        # Use reward tokenizer if provided, otherwise fall back to policy tokenizer
+        self.reward_tokenizer = reward_tokenizer or tokenizer
         
         # Wrap models for VERL compatibility
         self.policy = VERLPolicyWrapper(policy_model, tokenizer)
@@ -376,7 +380,7 @@ class VERLTrainer:
         
         full_texts = [f"{prompt} {response}" for prompt, response in zip(prompts, responses)]
         rewards = torch.tensor(
-            self.reward_model.get_rewards(full_texts, self.tokenizer, self.device),
+            self.reward_model.get_rewards(full_texts, self.reward_tokenizer, self.device),
             device=self.device,
             dtype=torch.float32
         )
@@ -735,6 +739,26 @@ def create_rlhf_trainer(
     # Load tokenizer and model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     policy_model = AutoModelForCausalLM.from_pretrained(model_name)
+
+    # Try to load reward tokenizer saved alongside the reward model
+    reward_tokenizer = None
+    reward_tokenizer_path = os.path.join(
+        config.system.reward_model_dir,
+        "best_reward_model_tokenizer"
+    )
+    if not os.path.exists(reward_tokenizer_path):
+        reward_tokenizer_path = os.path.join(
+            config.system.reward_model_dir,
+            "final_reward_model_tokenizer"
+        )
+    if os.path.exists(reward_tokenizer_path):
+        reward_tokenizer = AutoTokenizer.from_pretrained(reward_tokenizer_path)
+    else:
+        # Fallback to reward model's base tokenizer
+        try:
+            reward_tokenizer = AutoTokenizer.from_pretrained(reward_model.model_name)
+        except Exception:
+            reward_tokenizer = None
     
     # Ensure pad token is set
     if tokenizer.pad_token is None:
@@ -746,6 +770,7 @@ def create_rlhf_trainer(
         policy_model=policy_model,
         reward_model=reward_model,
         tokenizer=tokenizer,
+        reward_tokenizer=reward_tokenizer,
         config=config,
         device=device
     )
@@ -792,7 +817,7 @@ def evaluate_policy(
             full_texts = [f"{prompt} {response}" for response in responses]
             rewards = trainer.reward_model.get_rewards(
                 full_texts, 
-                trainer.tokenizer, 
+                trainer.reward_tokenizer, 
                 trainer.device
             )
             

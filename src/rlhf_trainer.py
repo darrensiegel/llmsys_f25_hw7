@@ -263,6 +263,9 @@ class VERLValueWrapper(nn.Module):
         else:
             pooled_hidden = last_hidden_state.mean(dim=1)
         
+        # Detach backbone features so value loss only updates value head when using separate optimizers
+        pooled_hidden = pooled_hidden.detach()
+
         # Compute value
         values = self.value_head(pooled_hidden).squeeze(-1)
         
@@ -353,9 +356,10 @@ class VERLTrainer:
             weight_decay=0.01
         )
         
+        # Only optimize the value head to avoid double-updating the shared backbone
         self.value_optimizer = torch.optim.AdamW(
-            self.value_model.parameters(),
-            lr=self.config.training.ppo_learning_rate * 2,  # Higher LR for value
+            self.value_model.value_head.parameters(),
+            lr=self.config.training.ppo_learning_rate * 2,  # Higher LR for value head
             weight_decay=0.01
         )
     

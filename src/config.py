@@ -253,6 +253,10 @@ def load_config_from_file(config_path: str) -> AssignmentConfig:
     Returns:
         AssignmentConfig: Loaded configuration
     """
+    # If a Python config module is provided, fall back to default_config
+    if config_path.endswith('.py'):
+        return get_config()
+
     import yaml
     
     with open(config_path, 'r') as f:

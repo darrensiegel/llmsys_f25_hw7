@@ -405,7 +405,8 @@ def load_reward_model(model_path: str, device: torch.device) -> RewardModel:
     Returns:
         Loaded RewardModel
     """
-    checkpoint = torch.load(model_path, map_location=device)
+    # weights_only=False is needed because checkpoint stores full config objects
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     
     # Extract model configuration
     config = checkpoint.get('config')

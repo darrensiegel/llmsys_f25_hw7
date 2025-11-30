@@ -23,8 +23,9 @@ try:
 except ImportError:
     logging.warning("VERL not installed. Some functionality may not work.")
 
-from .reward_model import RewardModel
-from .config import AssignmentConfig
+# Use absolute imports so the module works when src is added to PYTHONPATH
+from reward_model import RewardModel
+from config import AssignmentConfig
 
 logger = logging.getLogger(__name__)
 

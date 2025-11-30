@@ -438,7 +438,12 @@ class VERLTrainer:
         # 1. Compute returns = rewards + gamma * values (assume next state value = current value)
         # 2. Compute advantages = returns - values
         # 3. Normalize advantages: (advantages - mean) / (std + 1e-8)
-        raise NotImplementedError("Need to implement GAE computation for Assignment 7")
+        gamma = self.config.training.ppo_gamma
+
+        returns = rewards + gamma * values
+        advantages = returns - values
+
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         
         # END ASSIGN7_2_1
         
@@ -531,7 +536,20 @@ class VERLTrainer:
             #    - surr2 = clipped_ratio * advantages (clip ratio between 1-eps and 1+eps)
             # 3. Policy loss = -min(surr1, surr2).mean()
             # 4. Compute entropy bonus from policy logits
-            raise NotImplementedError("Need to implement PPO loss computation for Assignment 7")
+            ratio = torch.exp(new_log_probs - rollout_batch.log_probs)
+            advantages = rollout_batch.advantages.detach()
+
+            surr1 = ratio * advantages
+            clipped_ratio = torch.clamp(
+                ratio, 
+                1.0 - self.config.verl.ppo_clip_eps, 
+                1.0 + self.config.verl.ppo_clip_eps
+            )
+            surr2 = clipped_ratio * advantages
+
+            policy_loss = -torch.min(surr1, surr2).mean()
+
+            entropy = self._compute_entropy(policy_outputs.logits)
             
             # END ASSIGN7_2_2
             
@@ -636,7 +654,13 @@ class VERLTrainer:
         # 2. Convert logits to log_probabilities using log_softmax
         # 3. Compute entropy: -(probs * log_probs).sum(dim=-1)
         # 4. Return mean over sequence length
-        raise NotImplementedError("Need to implement entropy computation for Assignment 7")
+        probs = torch.softmax(logits, dim=-1)
+        log_probs = torch.log_softmax(logits, dim=-1)
+
+        token_entropy = -(probs * log_probs).sum(dim=-1)
+        seq_entropy = token_entropy.mean(dim=1)
+
+        return seq_entropy.mean()
         
         # END ASSIGN7_2_3
     
